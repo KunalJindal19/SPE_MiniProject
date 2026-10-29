@@ -1,3 +1,7 @@
+# Fixed project name: the same stack is managed whether Compose runs from your
+# clone or from the Jenkins workspace (otherwise the folder name is used)
+name: calculator
+
 services:
   # Calculator REST API: 2 replicas, only reachable through Nginx
   calculator:
