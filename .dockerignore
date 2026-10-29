@@ -1,0 +1,21 @@
+# Build artifacts (the image builds its own JAR)
+target/
+
+# Version control
+.git/
+
+# IDE and OS files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Local configuration and secrets
+.env
+
+# Files not needed inside the image
+Dockerfile
+docker-compose.yml
+nginx/
+Jenkinsfile
+*.md

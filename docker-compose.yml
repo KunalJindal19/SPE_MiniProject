@@ -1,0 +1,41 @@
+# Fixed project name: the same stack is managed whether Compose runs from your
+# clone or from the Jenkins workspace (otherwise the folder name is used)
+name: calculator
+
+services:
+  # Calculator REST API: 2 replicas, only reachable through Nginx
+  calculator:
+    image: kunaljindal19/calculator-api:${IMAGE_TAG:-latest}
+    environment:
+      - SERVER_PORT=8080
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=75.0
+    deploy:
+      replicas: 2
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - calculator-net
+
+  # Nginx reverse proxy: single entry point, load-balances across the replicas
+  nginx:
+    image: nginx:1.30-alpine
+    container_name: calculator-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      calculator:
+        condition: service_healthy   # start only after the API reports UP
+        restart: true                # restart Nginx when the API containers are replaced
+    restart: unless-stopped
+    networks:
+      - calculator-net
+
+networks:
+  calculator-net:

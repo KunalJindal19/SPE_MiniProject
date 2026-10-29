@@ -90,7 +90,51 @@ curl "http://localhost:8080/api/v1/divide?a=5&b=0"
 
 ## Docker
 
-_Coming soon._
+Docker Hub: [`kunaljindal19/calculator-api`](https://hub.docker.com/r/kunaljindal19/calculator-api)
+
+The [Dockerfile](Dockerfile) is a **multi-stage** build:
+
+1. **build** — `maven:3.9-eclipse-temurin-21`: downloads dependencies (cached layer, keyed on `pom.xml`) and packages the JAR.
+2. **runtime** — `eclipse-temurin:21-jre-alpine`: contains only the JRE and the JAR, runs as a non-root user and exposes port 8080.
+
+```bash
+# Build the image
+docker build -t kunaljindal19/calculator-api:latest .
+
+# Run it
+docker run -d --name calculator -p 8080:8080 kunaljindal19/calculator-api:latest
+
+# Or pull the published image
+docker pull kunaljindal19/calculator-api:latest
+```
+
+## Deployment (Docker Compose)
+
+[docker-compose.yml](docker-compose.yml) runs the full stack on a dedicated network (`calculator-net`):
+
+| Service | Image | Details |
+|---|---|---|
+| `calculator` | `kunaljindal19/calculator-api` | 2 replicas, health check on `/actuator/health`, `restart: unless-stopped`, not exposed to the host |
+| `nginx` | `nginx:1.30-alpine` | Reverse proxy on port **80**, load-balances across the replicas ([nginx/nginx.conf](nginx/nginx.conf)), starts only once the API is healthy |
+
+```bash
+# Start the whole stack
+docker compose up -d
+
+# Status (calculator replicas should be "healthy")
+docker compose ps
+
+# Call the API through Nginx
+curl -i "http://localhost/api/v1/add?a=2&b=3"     # X-Upstream header shows which replica answered
+
+# Scale the API
+docker compose up -d --scale calculator=3
+
+# Stop and remove the stack
+docker compose down
+```
+
+The image tag can be selected with `IMAGE_TAG` (default `latest`), e.g. `IMAGE_TAG=12 docker compose up -d`.
 
 ## CI/CD pipeline
 
