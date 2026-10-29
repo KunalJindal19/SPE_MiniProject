@@ -95,7 +95,7 @@ Docker Hub: [`kunaljindal19/calculator-api`](https://hub.docker.com/r/kunaljinda
 The [Dockerfile](Dockerfile) is a **multi-stage** build:
 
 1. **build** — `maven:3.9-eclipse-temurin-21`: downloads dependencies (cached layer, keyed on `pom.xml`) and packages the JAR.
-2. **runtime** — `eclipse-temurin:21-jre-alpine`: contains only the JRE and the JAR, runs as a non-root user, exposes port 8080 and defines a health check.
+2. **runtime** — `eclipse-temurin:21-jre-alpine`: contains only the JRE and the JAR, runs as a non-root user and exposes port 8080.
 
 ```bash
 # Build the image
