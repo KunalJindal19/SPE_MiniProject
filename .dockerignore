@@ -16,5 +16,6 @@ target/
 # Files not needed inside the image
 Dockerfile
 docker-compose.yml
+nginx/
 Jenkinsfile
 *.md
