@@ -1,0 +1,36 @@
+# Keep the build context small: only pom.xml and src/ are needed by the Dockerfile
+
+# Build output (the image builds its own JAR)
+target/
+
+# Version control
+.git/
+.gitignore
+.gitattributes
+
+# Maven wrapper (the build stage uses the Maven image instead)
+.mvn/
+mvnw
+mvnw.cmd
+
+# IDE / OS files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Docker / CI / deployment files
+Dockerfile
+.dockerignore
+docker-compose*.yml
+nginx/
+Jenkinsfile
+
+# Secrets and local environment
+.env
+.env.*
+
+# Docs
+*.md
+*.docx
+docs/
