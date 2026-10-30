@@ -5,6 +5,33 @@ DevOps pipeline: **Git/GitHub → Jenkins → Docker → Docker Compose**.
 
 > CSE 816 Software Production Engineering — Mini-Project
 
+- **Docker Hub image:** [kunaljindal19/calculator-api](https://hub.docker.com/r/kunaljindal19/calculator-api)
+- **Pipeline:** every push to `main` is built, tested, containerized, pushed and deployed automatically.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    dev[Developer] -->|git push / merge PR| gh[GitHub]
+    gh -->|push webhook via ngrok| checkout
+
+    subgraph pipeline [Jenkins declarative pipeline]
+        direction LR
+        checkout[Checkout] --> build[Build] --> test[Test] --> dbuild[Docker Build] --> push[Push] --> deploy[Deploy]
+    end
+
+    push -->|image :BUILD_NUMBER + :latest| hub[(Docker Hub)]
+    deploy -->|docker compose up -d| nginx
+    deploy -.->|success / failure email| mail[(Email)]
+
+    subgraph stack [Docker Compose stack - calculator-net]
+        nginx[Nginx reverse proxy :80] --> api1[calculator replica 1 :8080]
+        nginx --> api2[calculator replica 2 :8080]
+    end
+
+    client[Client] -->|HTTP :80| nginx
+```
+
 ## Tech stack
 
 | Area | Tool |
@@ -138,4 +165,73 @@ The image tag can be selected with `IMAGE_TAG` (default `latest`), e.g. `IMAGE_T
 
 ## CI/CD pipeline
 
-_Coming soon._
+The pipeline is defined in the [Jenkinsfile](Jenkinsfile) (declarative syntax) and is triggered automatically by a
+**GitHub push webhook** (`githubPush()` trigger).
+
+| Stage | What it does |
+|---|---|
+| **Checkout** | Checks out the commit that triggered the build (`checkout scm`) |
+| **Build** | `./mvnw clean package -DskipTests`; archives `calculator-api.jar` |
+| **Test** | `./mvnw test`; publishes JUnit XML reports; a failing test fails the build |
+| **Docker Build** | Builds the image, tagged `kunaljindal19/calculator-api:<BUILD_NUMBER>` and `:latest` |
+| **Push** | Logs in to Docker Hub with Jenkins-managed credentials and pushes both tags |
+| **Deploy** | `docker compose up -d --wait` with `IMAGE_TAG=<BUILD_NUMBER>`, then checks `/actuator/health` through Nginx |
+
+After every build an **email notification** is sent for success or failure (the console log is attached on failure).
+
+**Re-runnable and idempotent:** the Compose project name is fixed (`name: calculator`), so every run updates the
+same stack; `disableConcurrentBuilds()` prevents overlapping deployments; `--wait` fails the build if the new
+containers do not become healthy.
+
+### Jenkins setup
+
+| Item | Configuration |
+|---|---|
+| Plugins | Pipeline, Git, GitHub, JUnit, Credentials Binding, Email Extension |
+| JDK tool | `jdk21` (Manage Jenkins → Tools) |
+| Docker access | `jenkins` user added to the `docker` group |
+| Credentials | `dockerhub-creds` — Docker Hub username + access token (Username with password) |
+| Email | Extended E-mail Notification via SMTP; recipients set in *Default Recipients* (no addresses in the repository) |
+| Job | Pipeline script from SCM → this repository, branch `*/main`, script path `Jenkinsfile` |
+| Webhook | GitHub → Settings → Webhooks → `https://<jenkins-url>/github-webhook/`, push events |
+
+No credentials or secrets are stored in this repository.
+
+## Repository structure
+
+```
+.
+├── src/main/java/com/spe/calculator/
+│   ├── CalculatorApplication.java        # Spring Boot entry point
+│   ├── controller/CalculatorController.java
+│   ├── service/CalculatorService.java    # arithmetic + validation
+│   ├── dto/                              # CalculationResponse, ErrorResponse
+│   └── exception/                        # custom exceptions + GlobalExceptionHandler
+├── src/main/resources/application.properties
+├── src/test/java/com/spe/calculator/     # unit + MockMvc integration tests
+├── pom.xml                               # Maven build (Spring Boot, JaCoCo)
+├── Dockerfile                            # multi-stage build
+├── .dockerignore
+├── docker-compose.yml                    # API replicas + Nginx
+├── nginx/nginx.conf                      # reverse proxy / load balancer
+├── Jenkinsfile                           # declarative CI/CD pipeline
+└── docs/screenshots/                     # evidence for the report
+```
+
+## Screenshots
+
+**Green Jenkins pipeline run**
+
+![Jenkins pipeline](docs/screenshots/jenkins-pipeline.png)
+
+**Email notification**
+
+![Email notification](docs/screenshots/email-notification.png)
+
+**Running containers (`docker ps`)**
+
+![docker ps](docs/screenshots/docker-ps.png)
+
+**Sample API responses**
+
+![API responses](docs/screenshots/api-responses.png)
